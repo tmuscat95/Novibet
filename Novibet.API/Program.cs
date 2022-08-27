@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Novibet.API.Data;
-using Novibet.API.Services;
-using Novibet.API.Services.Interfaces;
+using Novibet.API.Data.Repositories;
+using Novibet.API.Types;
+using Novibet.API.Types.Interfaces;
 using Novibet.Library;
 using Novibet.Library.Interfaces;
 
@@ -15,6 +16,8 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<IPDetailsDBContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("IPDetails")));
 builder.Services.AddScoped<IIPInfoProvider,IPInfoProvider>();
+builder.Services.AddScoped<IRepoCache,RepoCache>();
+builder.Services.AddScoped<IRepoIPDetailsDB,RepoIPDetailsDB>();
 builder.Services.AddScoped<IServiceIPDetails,ServiceIPDetails>();
 
 var app = builder.Build();

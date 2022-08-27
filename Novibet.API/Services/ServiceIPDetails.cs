@@ -1,36 +1,25 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Novibet.API.Data;
-using Novibet.API.Services.Interfaces;
+﻿using Novibet.API.Data.Repositories;
+using Novibet.API.Types.Interfaces;
 using Novibet.Library.Exceptions;
 using Novibet.Library.Interfaces;
 using Novibet.Library.Models;
-using System.Runtime.Caching;
 
-namespace Novibet.API.Services
+namespace Novibet.API.Types
 {
-    public class ServiceIPDetails : IServiceIPDetails
+    public partial class ServiceIPDetails : IServiceIPDetails
     {
-        private readonly IPDetailsDBContext context;
         private readonly IIPInfoProvider ipInfoProvider;
-        private CacheItemPolicy policy;
-        private ObjectCache cache = MemoryCache.Default;
-        public ServiceIPDetails(IPDetailsDBContext iPDetailsDBContext, IIPInfoProvider provider)
-        {
-            context = iPDetailsDBContext;
-            ipInfoProvider = provider;
-            policy = new CacheItemPolicy();
-        }
+        private readonly IRepoIPDetailsDB repoIPDetailsDB;
+        private readonly IRepoCache repoCache;
 
-        private async Task<IPDetails?> GetIPDetailsFromDB(string ip)
-        {
-            return await context.Ipdetails.Where(r => r.Ip == ip).Select(r => r).FirstOrDefaultAsync();
-        }
+        private static Dictionary<Guid, UpdateJob> Jobs = new Dictionary<Guid, UpdateJob>();
 
-        private IPDetails? GetIPDetailsFromCache(string ip)
+        public ServiceIPDetails(IRepoCache repoCache, IRepoIPDetailsDB repoIPDetailsDB, IIPInfoProvider ipInfoProvider)
         {
-            return (IPDetails?)cache.Get(ip);
+            this.repoIPDetailsDB = repoIPDetailsDB;
+            this.ipInfoProvider = ipInfoProvider;
+            this.repoCache = repoCache;
         }
-
         private IPDetails GetIPDetailsFromAPI(string ip)
         {
             return ipInfoProvider.GetDetails(ip);
@@ -38,12 +27,12 @@ namespace Novibet.API.Services
         public async Task<IPDetails?> GetIPDetails(string ip)
         {
             IPDetails? iPDetails;
-            iPDetails = GetIPDetailsFromCache(ip);
+            iPDetails = repoCache.GetIPDetailsFromCache(ip);
             if (iPDetails == null)
             {
-                iPDetails = await GetIPDetailsFromDB(ip);
+                iPDetails = await repoIPDetailsDB.GetIPDetailsFromDB(ip);
                 if (iPDetails != null)
-                    InsertIPDetailsIntoCache(iPDetails);
+                    repoCache.InsertIPDetailsIntoCache(iPDetails);
             }
             if (iPDetails == null)
             {
@@ -55,29 +44,50 @@ namespace Novibet.API.Services
                 {
                     throw e;
                 }
-                InsertIPDetailsIntoCache(iPDetails);
-                await InsertIPDetailsIntoDB(iPDetails);
+                repoCache.InsertIPDetailsIntoCache(iPDetails);
+                await repoIPDetailsDB.InsertIPDetailsIntoDB(iPDetails);
             }
             return iPDetails;
         }
-
-        private async Task<bool> InsertIPDetailsIntoDB(IPDetails ipDetails)
+        public async Task Update(IPDetails iPDetails)
         {
-            try
+            await repoIPDetailsDB.UpdateIPDetailsInDB(iPDetails);
+            repoCache.InsertIPDetailsIntoCache(iPDetails);
+        }
+        public async Task BatchUpdate(IEnumerable<IPDetails> items, Guid jobGuid)
+        {
+
+
+            while (items.Any())
             {
-                await context.Ipdetails.AddAsync(ipDetails);
-                await context.SaveChangesAsync();
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
+                var tasks = new List<Task>();
+                var n = 10;
+                if (items.Count() < n)
+                    n = items.Count();
+
+                var batch10 = items.Take(n);
+                items = items.Skip(n);
+                foreach (var item in batch10)
+                {
+                    tasks.Add(Update(item));
+                }
+                await Task.WhenAll(tasks);
+                Jobs[jobGuid].itemsDone += n;
             }
         }
 
-        private void InsertIPDetailsIntoCache(IPDetails iPDetails)
+        public Guid AddBatchJob(UpdateJob job)
         {
-            cache.Set(iPDetails.Ip, iPDetails, policy);
+            var guid = Guid.NewGuid();
+            Jobs.Add(guid, job);
+            return guid;
+        }
+
+        public string GetJobProgress(Guid jobGuid)
+        {
+            if (!Jobs.ContainsKey(jobGuid))
+                return String.Empty;
+            return Jobs[jobGuid].GetDoneRatio();
         }
     }
 }
