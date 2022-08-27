@@ -14,6 +14,10 @@ namespace Novibet.API.Types
 
         private static Dictionary<Guid, UpdateJob> Jobs = new Dictionary<Guid, UpdateJob>();
 
+        public static UpdateJob GetJob(Guid guid)
+        {
+            return Jobs[guid];
+        }
         public ServiceIPDetails(IRepoCache repoCache, IRepoIPDetailsDB repoIPDetailsDB, IIPInfoProvider ipInfoProvider)
         {
             this.repoIPDetailsDB = repoIPDetailsDB;

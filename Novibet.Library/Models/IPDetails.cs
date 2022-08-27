@@ -18,5 +18,19 @@ namespace Novibet.Library.Models
         public double? Latitude { get; set; }
 
         public double? Longitude { get; set; }
+
+        public override bool Equals(Object? obj)
+        {
+            //Check for null and compare run-time types.
+            if ((obj == null) || !this.GetType().Equals(obj.GetType()))
+            {
+                return false;
+            }
+            else
+            {
+                IPDetails otherObj = (IPDetails)obj;
+                return (this.Ip == otherObj.Ip) && (this.City == otherObj.City) && (this.Country == otherObj.Country) && (this.Continent == otherObj.Continent) && (this.Longitude == otherObj.Longitude) && (this.Latitude == otherObj.Latitude);
+            }
+        }
     }
 }

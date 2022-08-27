@@ -12,6 +12,12 @@ namespace Novibet.API.Data.Repositories
             context = iPDetailsDBContext;
 
         }
+
+        public void TruncateIPDetailsTable()
+        {
+            context.Ipdetails.RemoveRange(context.Ipdetails.Select(x=>x).ToList());
+            context.SaveChanges();
+        }
         public async Task<IPDetails?> GetIPDetailsFromDB(string ip)
         {
             return await context.Ipdetails.Where(r => r.Ip == ip).Select(r => r).FirstOrDefaultAsync();

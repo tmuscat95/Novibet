@@ -23,5 +23,14 @@ namespace Novibet.API.Data.Repositories
             return (IPDetails?)cache.Get(ip);
         }
 
+        public void ClearCache()
+        {
+            List<string> cacheKeys = MemoryCache.Default.Select(kvp => kvp.Key).ToList();
+            foreach (string cacheKey in cacheKeys)
+            {
+                MemoryCache.Default.Remove(cacheKey);
+            }
+        }
+
     }
 }

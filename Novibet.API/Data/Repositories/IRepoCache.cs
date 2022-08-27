@@ -6,6 +6,6 @@ namespace Novibet.API.Data.Repositories
     {
         IPDetails? GetIPDetailsFromCache(string ip);
         void InsertIPDetailsIntoCache(IPDetails iPDetails);
-
+        void ClearCache();
     }
 }
